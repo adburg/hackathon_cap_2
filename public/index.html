@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Natteskiftet</title>
+<style>
+  :root {
+    --bg: #0d0f17; --panel: #151925; --panel2: #1b2030; --line: #262c40; --tekst: #d7dbe8; --dempet: #7d86a3;
+    --ok: #3ecf8e; --warn: #f5a524; --err: #ff4d5e; --info: #6aa6ff; --lilla: #a78bfa;
+    --kritisk: #ff4d5e; --høy: #ff9f43; --middels: #f6d365; --lav: #6fcf97;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--tekst); font: 14px/1.45 system-ui, Segoe UI, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+  h1 small { color: var(--dempet); font-weight: 400; margin-left: 8px; }
+  .klokke { font: 600 20px ui-monospace, Consolas, monospace; color: var(--info); min-width: 86px; }
+  .kontroller { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+  select, input, textarea, button { background: var(--panel2); color: var(--tekst); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--info); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primær { background: #2b5bd7; border-color: #2b5bd7; font-weight: 600; }
+  main { flex: 1; display: grid; grid-template-columns: minmax(380px, 1fr) minmax(420px, 1.15fr); gap: 14px; padding: 14px; min-height: 0; }
+  .kol { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--dempet); margin: 0 0 8px; font-weight: 600; }
+  .flis-rad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .flis { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel2); transition: all .25s; }
+  .flis b { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .flis i { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); display: inline-block; }
+  .flis small { color: var(--dempet); display: block; margin-top: 2px; font-size: 11px; }
+  .flis.warn { border-color: var(--warn); } .flis.warn i { background: var(--warn); }
+  .flis.err { border-color: var(--err); background: #2a1519; } .flis.err i { background: var(--err); animation: puls 1s infinite; }
+  .flis.alarm { border-color: var(--err); background: #3a161c; box-shadow: 0 0 14px #ff4d5e55; } .flis.alarm i { background: var(--err); animation: puls .6s infinite; }
+  @keyframes puls { 50% { opacity: .25; transform: scale(1.5); } }
+  .logg-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #logg { flex: 1; overflow-y: auto; font: 12px/1.5 ui-monospace, Consolas, monospace; background: #0a0c12; border-radius: 6px; padding: 8px; min-height: 200px; }
+  .l { white-space: pre-wrap; word-break: break-word; padding: 0 4px; border-left: 3px solid transparent; }
+  .l .t { color: var(--dempet); } .l .s { color: var(--info); margin: 0 6px; } .l .n { margin-right: 6px; font-weight: 700; }
+  .l.INFO .n { color: var(--dempet); } .l.WARN { border-color: var(--warn); } .l.WARN .n { color: var(--warn); }
+  .l.ERROR { border-color: var(--err); background: #2a1519; animation: blink .9s; } .l.ERROR .n { color: var(--err); }
+  @keyframes blink { 0%,40% { background: #7a1f2b; } }
+  .l.system { color: var(--lilla); border-color: var(--lilla); }
+  .l.alarm { background: var(--err); color: #fff; font-weight: 700; margin: 4px 0; padding: 4px 8px; border-radius: 4px; }
+  .l.alarm.annen { background: #4a2a30; font-weight: 400; }
+  .høyre { overflow-y: auto; padding-right: 4px; }
+  .tom { color: var(--dempet); text-align: center; padding: 40px 10px; }
+  .kort { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--info); border-radius: 8px; padding: 9px 12px; margin-bottom: 8px; animation: inn .25s; }
+  @keyframes inn { from { opacity: 0; transform: translateY(6px); } }
+  .kort.tekst { border-left-color: var(--dempet); color: var(--dempet); font-style: italic; }
+  .kort.alarm { border-left-color: var(--err); background: #2a1519; }
+  .kort.stopp { border-left-color: var(--warn); background: #2a2212; }
+  .kort .topp { display: flex; align-items: center; gap: 8px; }
+  .kort .topp b { font-family: ui-monospace, Consolas, monospace; color: var(--warn); }
+  .kort .tid { margin-left: auto; color: var(--dempet); font-size: 12px; }
+  .chip { display: inline-block; background: var(--panel2); border-radius: 4px; padding: 0 6px; margin: 4px 4px 0 0; font: 12px ui-monospace, Consolas, monospace; color: var(--dempet); }
+  .chip b { color: var(--tekst); font-weight: 500; }
+  .res { color: var(--ok); font-size: 12px; margin-top: 4px; } .res.feil { color: var(--warn); }
+  details pre { white-space: pre-wrap; word-break: break-word; font: 11px/1.4 ui-monospace, Consolas, monospace; color: var(--dempet); background: #0a0c12; padding: 6px; border-radius: 4px; max-height: 160px; overflow: auto; margin: 4px 0 0; }
+  details summary { cursor: pointer; font-size: 12px; color: var(--info); }
+  .rapport { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); margin-bottom: 8px; overflow: hidden; animation: inn .35s; }
+  .rapport .hode { padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; }
+  .merke { font-weight: 800; font-size: 11px; letter-spacing: 1px; padding: 3px 8px; border-radius: 4px; color: #111; text-transform: uppercase; white-space: nowrap; }
+  .rapport h3 { margin: 0; font-size: 16px; }
+  .rapport .del { padding: 10px 14px; border-top: 1px solid var(--line); }
+  .rapport .del h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dempet); }
+  .hyp { margin-bottom: 10px; }
+  .hyp .rad { display: flex; align-items: center; gap: 10px; }
+  .hyp .pst { font: 700 15px ui-monospace, Consolas, monospace; width: 48px; text-align: right; }
+  .hyp .stolpe { height: 6px; background: var(--panel2); border-radius: 3px; margin: 4px 0 4px 58px; }
+  .hyp .stolpe div { height: 100%; border-radius: 3px; transition: width .8s; }
+  .hyp ul { margin: 2px 0 0 58px; padding-left: 16px; color: var(--dempet); font-size: 12px; }
+  .hyp .mangler { margin-left: 58px; font-size: 12px; color: var(--warn); }
+  .rapport ol, .rapport ul.enkel { margin: 0; padding-left: 20px; }
+  .rapport li { margin-bottom: 3px; } .rapport li small { color: var(--dempet); }
+  .rapport ol li:first-child { font-weight: 600; color: #fff; }
+  .vekk { display: flex; gap: 8px; flex-wrap: wrap; }
+  .vekk div { background: var(--panel2); border-radius: 6px; padding: 6px 10px; font-size: 13px; } .vekk small { display: block; color: var(--dempet); }
+  .fot { font-size: 11px; color: var(--dempet); padding: 8px 14px; border-top: 1px solid var(--line); }
+  .varsel { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--line); align-items: center; font-size: 13px; }
+  .varsel .kanal { font-weight: 700; text-transform: uppercase; font-size: 11px; color: var(--lilla); }
+  .stat { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: var(--panel2); color: var(--dempet); }
+  .stat.sendt { background: var(--ok); color: #111; } .stat.feilet { background: var(--err); color: #fff; } .stat.planlagt { background: var(--warn); color: #111; }
+  .teamskort { white-space: pre-wrap; background: #1f2540; border-left: 3px solid #5b5fc7; padding: 6px 10px; margin: 6px 0; border-radius: 4px; font-size: 12px; }
+  .lukk textarea { width: 100%; height: 60px; margin: 6px 0; resize: vertical; }
+  .pm { white-space: pre-wrap; font-size: 13px; } .pm h4 { margin: 12px 0 4px; font-size: 14px; color: var(--info); letter-spacing: 0; text-transform: none; }
+  .fargeforklaring { color: var(--dempet); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐺 Natteskiftet <small>assistenten som tar første vakt</small></h1>
+  <div class="klokke" id="klokke">02:30:00</div>
+  <div class="kontroller">
+    <select id="scenario"></select>
+    <select id="fart" title="Simulert tid per sekund">
+      <option value="30">30× fart</option><option value="60" selected>60× fart</option><option value="120">120× fart</option>
+    </select>
+    <button class="primær" id="start">▶ Start simulering</button>
+    <button id="hopp" title="Spol til alarmen og start agenten med en gang">⏭ Hopp til alarm</button>
+    <button id="reset">↺ Nullstill</button>
+  </div>
+</header>
+<main>
+  <div class="kol">
+    <div class="panel"><h2>Tjenester</h2><div class="flis-rad" id="fliser"></div></div>
+    <div class="panel logg-panel"><h2>Live logg <span class="fargeforklaring">— ERROR utløser alarm og setter i gang agenten</span></h2><div id="logg"></div></div>
+  </div>
+  <div class="kol høyre" id="høyre"></div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hhmmss = (ms) => new Date(ms).toLocaleTimeString('nb-NO', { hour12: false, timeZone: 'Europe/Oslo' }).replace(/\./g, ':');
+const FARGE = { kritisk: 'var(--kritisk)', høy: 'var(--høy)', middels: 'var(--middels)', lav: 'var(--lav)' };
+const IKON = { sok_i_logger: '🔎', hent_runbook: '📖', sjekk_deploy_historikk: '🚀', finn_lignende_hendelser: '🗂️', hent_tjenesteinfo: '🧭', lever_rapport: '📝' };
+
+let D, hendelser, pekere, simNå, tikker, es, agentStartet, alarmValgt, fortløpende;
+let tilstand; // per tjeneste: { sisteErr, sisteWarn, alarm, sett }
+let steg, siste; // agentens steg (til post-mortem) og siste rapport
+
+async function init() {
+  D = await (await fetch('/api/data')).json();
+  D.logger.sort((a, b) => Date.parse(a.tid) - Date.parse(b.tid));
+  $('scenario').innerHTML = D.alarmer.map((a) => `<option value="${a.id}">${hhmmss(Date.parse(a.tid)).slice(0, 5)} · ${esc(a.tjeneste)} — ${esc(a.tittel)}</option>`).join('')
+    + '<option value="fri">Egen alarmtekst …</option>';
+  $('start').onclick = start; $('hopp').onclick = hopp; $('reset').onclick = nullstill;
+  nullstill();
+}
+
+function nullstill() {
+  clearInterval(tikker); es?.close();
+  hendelser = [
+    ...D.logger.map((l) => ({ ms: Date.parse(l.tid), type: 'logg', l })),
+    ...D.alarmer.map((a) => ({ ms: Date.parse(a.tid), type: 'alarm', a })),
+  ].sort((a, b) => a.ms - b.ms);
+  pekere = 0; simNå = Date.parse(D.logger[0].tid) - 1000; agentStartet = false; steg = []; siste = null;
+  tilstand = Object.fromEntries(D.tjenester.map((t) => [t.navn, { sisteErr: -1e15, sisteWarn: -1e15, alarm: false, sett: false }]));
+  $('logg').innerHTML = ''; $('klokke').textContent = hhmmss(simNå);
+  $('høyre').innerHTML = '<div class="tom">Velg en alarm og start simuleringen.<br>Agenten starter når alarmen går, og hvert steg dukker opp her.</div>';
+  $('start').disabled = false; $('hopp').disabled = false;
+  tegnFliser();
+}
+
+function start() {
+  alarmValgt = $('scenario').value;
+  if (alarmValgt === 'fri') return kjørFri();
+  $('start').disabled = true;
+  const fart = Number($('fart').value);
+  clearInterval(tikker);
+  tikker = setInterval(() => { simNå += 100 * fart; spill(); }, 100);
+}
+
+function hopp() {
+  alarmValgt = $('scenario').value;
+  if (alarmValgt === 'fri') return kjørFri();
+  const a = D.alarmer.find((x) => x.id === alarmValgt);
+  clearInterval(tikker);
+  simNå = Date.parse(a.tid); spill(true);
+}
+
+function kjørFri() {
+  const tekst = prompt('Skriv alarmteksten:', 'ALARM kl 03:50: ');
+  if (tekst) startAgent({ tekst }, tekst);
+}
+
+// Spiller av alle linjer som har «skjedd» innen simulert tid.
+function spill(rask = false) {
+  while (pekere < hendelser.length && hendelser[pekere].ms <= simNå) vis(hendelser[pekere++], rask);
+  $('klokke').textContent = hhmmss(simNå);
+  tegnFliser();
+  const l = $('logg'); l.scrollTop = l.scrollHeight;
+}
+
+function linje(klasse, html) {
+  const d = document.createElement('div'); d.className = `l ${klasse}`; d.innerHTML = html; $('logg').appendChild(d);
+  while ($('logg').children.length > 500) $('logg').firstChild.remove();
+}
+
+function vis(h, rask) {
+  if (h.type === 'logg') {
+    const { l } = h, t = tilstand[l.tjeneste];
+    if (l.nivå === 'ERROR') {
+      if (!t.sett) { t.sett = true; linje('system', `<span class="t">${hhmmss(h.ms)}</span> ▲ Anomali: første ERROR fra <b>${esc(l.tjeneste)}</b>`); }
+      t.sisteErr = h.ms;
+    } else if (l.nivå === 'WARN') t.sisteWarn = h.ms;
+    linje(l.nivå, `<span class="t">${hhmmss(h.ms)}</span><span class="s">${esc(l.tjeneste)}</span><span class="n">${esc(l.nivå)}</span>${esc(l.melding)}`);
+  } else {
+    const { a } = h, valgt = a.id === alarmValgt;
+    linje(valgt ? 'alarm' : 'alarm annen', `🔔 ${hhmmss(h.ms).slice(0, 5)} ALARM ${esc(a.tjeneste)} (${esc(a.alvorlighet)}): ${esc(a.tekst)}`);
+    tilstand[a.tjeneste].alarm = true;
+    if (valgt && !agentStartet) { clearInterval(tikker); startAgent({ alarm: a.id }, a); if (!rask) tikker = setInterval(() => { simNå += 100 * Number($('fart').value); spill(); }, 100); }
+  }
+}
+
+function tegnFliser() {
+  $('fliser').innerHTML = D.tjenester.map((t) => {
+    const s = tilstand[t.navn], vindu = 600000; // 10 simulerte minutter
+    const k = s.alarm ? 'alarm' : simNå - s.sisteErr < vindu ? 'err' : simNå - s.sisteWarn < vindu ? 'warn' : '';
+    const tekst = s.alarm ? 'ALARM' : k === 'err' ? 'feil nå' : k === 'warn' ? 'advarsler' : 'ok';
+    return `<div class="flis ${k}"><b><i></i>${esc(t.navn)}</b><small>${tekst} · ${esc(t.eier_team)}</small></div>`;
+  }).join('');
+}
+
+// ---------- Agenten ----------
+const kortFor = {};
+function startAgent(param, alarm) {
+  agentStartet = true; steg = []; $('start').disabled = true; $('hopp').disabled = true;
+  const h = $('høyre'); h.innerHTML = '';
+  const tittel = typeof alarm === 'string' ? alarm : `${alarm.tjeneste} (${alarm.alvorlighet}): ${alarm.tittel}. ${alarm.tekst}`;
+  h.insertAdjacentHTML('beforeend', `<div class="kort alarm"><div class="topp"><b style="color:var(--err)">🔔 ALARM</b><span class="tid">${hhmmss(Date.now())}</span></div>${esc(tittel)}<div class="res">🐺 Agenten tar første vakt …</div></div>`);
+  const t0 = Date.now();
+  const q = new URLSearchParams(param);
+  es = new EventSource(`/api/kjor?${q}`);
+  es.onmessage = (m) => {
+    const e = JSON.parse(m.data), sek = ((Date.now() - t0) / 1000).toFixed(1) + ' s';
+    if (e.type === 'ferdig') { es.close(); $('hopp').disabled = false; return; }
+    if (e.type === 'tekst') h.insertAdjacentHTML('beforeend', `<div class="kort tekst">💭 ${esc(e.tekst)}</div>`);
+    if (e.type === 'verktoy') {
+      steg.push({ navn: e.navn, input: e.input, sek });
+      const chips = Object.entries(e.input ?? {}).map(([k, v]) => `<span class="chip">${esc(k)}=<b>${esc(typeof v === 'object' ? JSON.stringify(v).slice(0, 60) : v)}</b></span>`).join('');
+      const id = 'k' + e.id.replace(/\W/g, '');
+      h.insertAdjacentHTML('beforeend', `<div class="kort" id="${id}"><div class="topp"><span>${IKON[e.navn] ?? '🔧'}</span><b>${esc(e.navn)}</b><span class="tid">${sek}</span></div>${chips}<div class="res">kjører …</div></div>`);
+    }
+    if (e.type === 'resultat') {
+      const k = document.getElementById('k' + e.id.replace(/\W/g, '')); const s = steg.find((x) => x.navn === e.navn && !x.tegn); if (s) s.tegn = e.tegn;
+      if (k) k.querySelector('.res').outerHTML = `<div class="res ${e.feil ? 'feil' : ''}">${e.feil ? '✖' : '✓'} ${e.tegn} tegn tilbake</div><details><summary>vis</summary><pre>${esc(e.forhandsvis)}${e.tegn > e.forhandsvis.length ? '\n…' : ''}</pre></details>`;
+    }
+    if (e.type === 'rapport') { siste = { rapport: e.rapport, alarm: tittel }; h.insertAdjacentHTML('beforeend', rapportHtml(e.rapport)); }
+    if (e.type === 'varsel') { h.insertAdjacentHTML('beforeend', varselHtml(e.varsler)); h.insertAdjacentHTML('beforeend', lukkHtml()); $('lukkKnapp').onclick = lukkHendelse; }
+    if (e.type === 'stopp') h.insertAdjacentHTML('beforeend', `<div class="kort stopp">⚠ ${esc(e.grunn)}</div>`);
+    h.scrollTop = h.scrollHeight;
+  };
+  es.onerror = () => { es.close(); $('hopp').disabled = false; };
+}
+
+function rapportHtml(r) {
+  const farge = (k) => (k >= 70 ? 'var(--err)' : k >= 40 ? 'var(--warn)' : 'var(--dempet)');
+  const hyp = r.hypoteser.map((x) => `<div class="hyp"><div class="rad"><span class="pst" style="color:${farge(x.konfidens)}">${x.konfidens}%</span><span>${esc(x.arsak)}</span></div>
+    <div class="stolpe"><div style="width:${x.konfidens}%;background:${farge(x.konfidens)}"></div></div>
+    ${x.bevis.length ? `<ul>${x.bevis.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>` : ''}${x.mangler ? `<div class="mangler">? ${esc(x.mangler)}</div>` : ''}</div>`).join('');
+  return `<div class="rapport">
+    <div class="hode"><span class="merke" style="background:${FARGE[r.alvorlighet]}">${esc(r.alvorlighet)}</span><div><h3>${esc(r.tittel)}</h3><div style="color:var(--dempet)">${esc(r.tjeneste)}</div></div></div>
+    <div class="del">${esc(r.hva_skjer)}</div>
+    <div class="del"><h4>Mulige årsaker · konfidens</h4>${hyp || '<i>Ingen hypotese.</i>'}</div>
+    <div class="del"><h4>Neste steg</h4><ol>${r.neste_steg.map((s) => `<li>${esc(s.handling)} ${s.kilde ? `<small>(${esc(s.kilde)})</small>` : ''}</li>`).join('')}</ol></div>
+    <div class="del"><h4>Vet ikke</h4><ul class="enkel">${r.vet_ikke.map((v) => `<li>${esc(v)}</li>`).join('') || '<li>—</li>'}</ul></div>
+    <div class="del"><h4>Vekk</h4>${r.vekk.length ? `<div class="vekk">${r.vekk.map((v) => `<div>👤 <b>${esc(v.navn)}</b> · ${esc(v.rolle)}<small>${esc(v.team)} — ${esc(v.begrunnelse)}</small></div>`).join('')}</div>` : 'Ingen trenger å vekkes.'}</div>
+    <div class="fot">Utkast fra en AI-agent. Verifiser før du handler eller deler videre.</div></div>`;
+}
+
+function varselHtml(v) {
+  const rader = v.map((x) => `<div class="varsel"><span class="kanal">${esc(x.kanal)}</span><span>${esc(x.mottaker)}${x.nar ? ` <small style="color:var(--dempet)">(${esc(x.nar)})</small>` : ''}${x.kanal === 'teams' ? `<div class="teamskort">${esc(x.tekst)}</div>` : ''}</span><span class="stat ${esc(x.status)}">${esc(x.status)}${x.detalj ? ' · ' + esc(x.detalj) : ''}</span></div>`).join('');
+  return `<div class="panel" style="margin-bottom:8px"><h2>Varsling og eskalering</h2>${rader}<div class="fargeforklaring" style="margin-top:6px">«simulert» = ikke sendt på ekte. Sett TEAMS_WEBHOOK_URL i .env for å sende til Teams.</div></div>`;
+}
+
+const lukkHtml = () => `<div class="panel lukk"><h2>Lukk hendelsen</h2><div class="fargeforklaring">Hva ble faktisk gjort? (valgfritt, gir et bedre utkast)</div><textarea id="utfort" placeholder="F.eks. Pauset reindeks kl 03:21, p95 normal etter 3 min."></textarea><button class="primær" id="lukkKnapp">✔ Lukk og lag post-mortem-utkast</button></div>`;
+
+async function lukkHendelse() {
+  const knapp = $('lukkKnapp'); knapp.disabled = true; knapp.textContent = 'Skriver utkast …';
+  try {
+    const res = await fetch('/api/postmortem', { method: 'POST', body: JSON.stringify({ alarm: siste.alarm, rapport: siste.rapport, steg, utfort: $('utfort').value }) });
+    const { tekst, feil } = await res.json(); if (feil) throw new Error(feil);
+    const html = esc(tekst).replace(/^#{1,3} (.*)$/gm, '<h4>$1</h4>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    $('høyre').insertAdjacentHTML('beforeend', `<div class="panel"><h2>Post-mortem (utkast)</h2><div class="pm">${html}</div><div class="fargeforklaring" style="margin-top:8px">Utkast generert av AI. Les gjennom og korriger før det deles.</div><button id="kopier" style="margin-top:6px">Kopier som tekst</button></div>`);
+    $('kopier').onclick = () => navigator.clipboard.writeText(tekst);
+    knapp.textContent = '✔ Lukket';
+  } catch (e) { knapp.disabled = false; knapp.textContent = 'Feilet: ' + e.message + ' (prøv igjen)'; }
+  $('høyre').scrollTop = $('høyre').scrollHeight;
+}
+
+init();
+</script>
+</body>
+</html>

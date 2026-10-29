@@ -1,6 +1,8 @@
 // Startpunktet: npm start -- "spørsmålet ditt"
-import { kjørAgent } from './agent.js';
-import { system, eksempelOppgave, verktøy } from './verktoy.js';
+import { håndterAlarm } from './hendelse.js';
+import { eksempelOppgave } from './verktoy.js';
+import { konsollPa } from './konsoll.js';
+import { tekstRapport } from './rapport.js';
 
 try {
   process.loadEnvFile();
@@ -16,4 +18,5 @@ if (!process.env.ANTHROPIC_API_KEY) {
 const oppgave = process.argv.slice(2).join(' ') || eksempelOppgave;
 console.log(`\n🎃 ${oppgave}\n`);
 
-await kjørAgent({ system, oppgave, verktøy });
+const { rapport, varsler } = await håndterAlarm({ oppgave, pa: konsollPa });
+if (rapport) console.log(`\n${tekstRapport(rapport, varsler)}`);

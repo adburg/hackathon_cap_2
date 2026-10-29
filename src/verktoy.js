@@ -4,14 +4,20 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const DATA = path.join(import.meta.dirname, '..', 'data');
-const lesJson = (fil) => JSON.parse(fs.readFileSync(path.join(DATA, fil), 'utf8'));
+export const DATA = path.join(import.meta.dirname, '..', 'data');
+export const lesJson = (fil) => JSON.parse(fs.readFileSync(path.join(DATA, fil), 'utf8'));
 
 export const system = `Du tar første vakt når en alarm går om natta, før et menneske rekker å åpne laptopen.
-Grav i loggene og de andre kildene til du har en hypotese om hva som skjer og hvorfor.
+Grav i loggene og de andre kildene til du har en hypotese om hva som skjer og hvorfor. Feilen sitter ofte i en annen tjeneste enn den som alarmerer.
 Skill mellom det du har sett i dataene og det du antar. Si eksplisitt hva du ikke vet.
 En agent som gjetter på et produksjonsproblem er verre enn ingen agent.
-Avslutt med en kort situasjonsrapport på norsk: alvorlighet, berørt tjeneste, sannsynlig årsak, hva du ikke vet, og foreslått neste steg.`;
+
+Du avslutter ALLTID ved å kalle lever_rapport. Ikke skriv sluttrapporten som vanlig tekst.
+Rapporten leses av en trøtt person kl 03, så den skal være kort, konkret og til å handle på:
+- Tittel og hva_skjer: ren fakta, ingen utbrodering.
+- Hypoteser: 1-3 stk, mest sannsynlig først, med konfidens i prosent. Over 80 bare når du har sett direkte bevis i loggene og tidspunktene stemmer. 40-80 når mønsteret passer, men noe mangler. Under 40 er en åpen mulighet. Trekk ned konfidensen hvis en runbook eller en tidligere hendelse ser utdatert eller bare delvis lik ut, og si hva som skiller dem.
+- Neste steg: konkrete handlinger i rekkefølge, helst med kommandoen fra runbooken. Advar hvis runbooken ikke passer med det du ser i loggene. Foreslå aldri noe du ikke har grunnlag for.
+- Vekk: bare personer som faktisk må handle nå. Er problemet ufarlig eller løst av seg selv, eller kan det fikses etter runbook uten hjelp, skal lista være tom.`;
 
 export const eksempelOppgave =
   'ALARM kl 03:12 natt til 29. oktober: betaling: andel 5xx-svar siste 5 min er 9.4 % (terskel 5 %). Gjelder POST /betaling/trekk.';
@@ -85,6 +91,15 @@ function finnLignendeHendelser({ tjeneste, tekst } = {}) {
   return treff;
 }
 
+function hentTjenesteinfo({ tjeneste } = {}) {
+  const alle = lesJson('tjenester.json');
+  const medBrukere = (t) => ({ ...t, brukes_av: alle.filter((x) => x.avhengigheter.includes(t.navn)).map((x) => x.navn) });
+  if (!tjeneste) return alle.map(medBrukere);
+  const t = alle.find((x) => x.navn === tjeneste);
+  if (!t) throw new Error(`Ukjent tjeneste «${tjeneste}». Gyldige: ${alle.map((x) => x.navn).join(', ')}`);
+  return medBrukere(t);
+}
+
 export const verktøy = [
   {
     definisjon: {
@@ -153,5 +168,80 @@ export const verktøy = [
       },
     },
     kjør: async (input) => finnLignendeHendelser(input),
+  },
+  {
+    definisjon: {
+      name: 'hent_tjenesteinfo',
+      description:
+        'Gir eier-team, vaktpersoner, avhengigheter og hvilke tjenester som bruker denne (brukes_av). ' +
+        'Bruk den for å forstå hvor en feil kan forplante seg, og for å velge hvem som eventuelt skal vekkes. Utelat tjeneste for alle seks.',
+      input_schema: {
+        type: 'object',
+        properties: { tjeneste: { type: 'string', description: 'Tjenestenavn, f.eks. "kunde-db".' } },
+      },
+    },
+    kjør: async (input) => hentTjenesteinfo(input),
+  },
+  {
+    // avslutter: true betyr at løkka stopper når modellen kaller dette verktøyet,
+    // og at input blir selve rapporten.
+    avslutter: true,
+    definisjon: {
+      name: 'lever_rapport',
+      description:
+        'Leverer den endelige situasjonsrapporten og avslutter jobben din. Kall den når du har en hypotese (eller har gravd ferdig uten å finne en). ' +
+        'Hold alt kort. Hver hypotese må ha en ærlig konfidens, og alt du ikke vet skal stå i vet_ikke.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          alvorlighet: { type: 'string', enum: ['kritisk', 'høy', 'middels', 'lav'], description: 'Kritisk: brukere rammes nå og et menneske må handle. Lav: ufarlig eller går over av seg selv.' },
+          tjeneste: { type: 'string', description: 'Tjenesten feilen sannsynligvis sitter i (ikke nødvendigvis den som alarmerte).' },
+          tittel: { type: 'string', description: 'Én setning, maks ca 90 tegn. F.eks. "Betaling: 5xx etter utrulling 2.14.0".' },
+          hva_skjer: { type: 'string', description: '1-2 setninger med fakta fra dataene: hva som feiler, siden når, hvem som rammes.' },
+          hypoteser: {
+            type: 'array',
+            description: '1-3 mulige årsaker, mest sannsynlig først.',
+            items: {
+              type: 'object',
+              properties: {
+                arsak: { type: 'string', description: 'Én setning.' },
+                konfidens: { type: 'integer', minimum: 0, maximum: 100, description: 'Hvor sikker du er, i prosent.' },
+                bevis: { type: 'array', items: { type: 'string' }, description: 'Korte bevis fra loggene/deploy/hendelser, gjerne med klokkeslett. Maks 3.' },
+                mangler: { type: 'string', description: 'Hva som taler imot eller mangler for at du skal være sikrere.' },
+              },
+              required: ['arsak', 'konfidens', 'bevis'],
+            },
+          },
+          vet_ikke: { type: 'array', items: { type: 'string' }, description: 'Ting du ikke har kunnet bekrefte. Maks 4, korte.' },
+          neste_steg: {
+            type: 'array',
+            description: 'Konkrete handlinger i rekkefølge, maks 4. Første er det som bør gjøres nå.',
+            items: {
+              type: 'object',
+              properties: {
+                handling: { type: 'string', description: 'Imperativ, med kommando hvis runbooken har en.' },
+                kilde: { type: 'string', description: 'Hvor det kommer fra, f.eks. "runbook sok" eller "ditt eget forslag".' },
+              },
+              required: ['handling'],
+            },
+          },
+          vekk: {
+            type: 'array',
+            description: 'Hvem som bør vekkes nå. Tom liste hvis ingen trenger det.',
+            items: {
+              type: 'object',
+              properties: {
+                tjeneste: { type: 'string', description: 'Tjenesten hvis vaktperson skal vekkes.' },
+                rolle: { type: 'string', enum: ['primær', 'sekundær'] },
+                begrunnelse: { type: 'string', description: 'Hvorfor akkurat denne vakten.' },
+              },
+              required: ['tjeneste', 'rolle', 'begrunnelse'],
+            },
+          },
+        },
+        required: ['alvorlighet', 'tjeneste', 'tittel', 'hva_skjer', 'hypoteser', 'vet_ikke', 'neste_steg', 'vekk'],
+      },
+    },
+    kjør: async () => 'Rapport mottatt.',
   },
 ];

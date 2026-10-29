@@ -58,3 +58,15 @@ Dataene er ren JSON og markdown. Bruk dem fra Python, C#, Go eller hva dere vil.
 - Vis verktøykallene i demoen. Det er de som viser at agenten tenker selv, ikke svaret alene.
 - `MAX_ITERASJONER` i `.env` (standard 10) stopper en agent som går i ring.
 - `.env` committes aldri. Den står i `.gitignore`, la den bli der.
+
+## Nettgrensesnitt og simulering
+
+```bash
+npm run ui     # http://localhost:3000
+```
+
+Spiller av loggene fra natta som en live strøm. Tjenestene skifter farge ved WARN/ERROR, alarmen går, og agenten starter. Hvert verktøykall, rapporten (med konfidens per årsak), varslingen og post-mortem-utkastet vises i høyre kolonne.
+
+- `src/rapport.js` normaliserer rapporten. Vaktpersoner slås opp i `tjenester.json`, ikke fra modellen.
+- `src/varsling.js` eskalerer etter alvorlighet. Teams sendes på ekte bare hvis `TEAMS_WEBHOOK_URL` er satt i `.env`. Ring og SMS er alltid simulert.
+- `src/postmortem.js` lager utkast når hendelsen lukkes.
